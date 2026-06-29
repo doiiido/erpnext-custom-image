@@ -23,6 +23,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Clone frappe_docker
+        run: git clone https://github.com/frappe/frappe_docker
+
+      - name: Copy apps.json
+        run: cp apps.json frappe_docker/apps.json
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -38,25 +44,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Prepare apps.json base64
-        id: apps
-        run: |
-          echo "APPS_JSON_BASE64=$(base64 -w 0 apps.json)" >> $GITHUB_OUTPUT
-
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: Containerfile
+          context: ./frappe_docker
+          file: ./frappe_docker/images/layered/Containerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          secret-files: |
+            apps_json=./apps.json
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           build-args: |
             FRAPPE_PATH=https://github.com/frappe/frappe
             FRAPPE_BRANCH=version-16
-            PYTHON_VERSION=3.14.6
-            NODE_VERSION=24.16.0
-            APPS_JSON_BASE64=${{ steps.apps.outputs.APPS_JSON_BASE64 }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
